@@ -4,13 +4,17 @@
 // @version      0.1
 // @description  Solve sudoku
 // @author       Charlie Li
-// @include      /^https://www\.puzzle\-sudoku\.com/(\?size=\d*)?$/
+// @include      /^https://www\.puzzle(-jigsaw)?\-sudoku\.com/(\?size=\d*)?$/
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant        none
 // ==/UserScript==
 
 (function() {
   "use strict";
+  if (window.Game.sandwichTask.length) {
+    // not solving sandwich sudoku
+    return;
+  }
   const numbers = [
     "1",
     "2",
