@@ -61,7 +61,7 @@
     return bits;
   };
   const areaPoints = window.Game.areaPoints;
-  const areas = window.Game.areas;
+  const areas = window.Game.areas.map(row => row.map(area => parseInt(area)));
 
   const size = window.Game.currentState.cellStatus.length;
   const bitSequence = [...Array(1 << size).keys()].sort(
@@ -145,6 +145,118 @@
         areaPoints[areas[row][col]].map(({ row: i, col: j }) => [i, j]),
         solvedBits.area[areas[row][col]]
       );
+      if (!updatedQueue.length) {
+        // row x area
+        for (let i = 0; i < size; i++) {
+          const intersect = areaPoints.map(() => false);
+          for (let j = 0; j < size; j++) {
+            intersect[areas[i][j]] = true;
+          }
+          for (let j in intersect) {
+            if (!intersect[j]) {
+              continue;
+            }
+            let mask = 0;
+            // eliminate area
+            for (let k = 0; k < size; k++) {
+              // in row i but not in area j
+              if (areas[i][k] === parseInt(j)) {
+                continue;
+              }
+              mask |= possibleNumber[i][k];
+            }
+            for (let k in areaPoints[j]) {
+              const { row, col } = areaPoints[j][k];
+              // in area j but not in row i
+              if (row === i) {
+                continue;
+              }
+              if (
+                (possibleNumber[row][col] & mask) !==
+                possibleNumber[row][col]
+              ) {
+                possibleNumber[row][col] &= mask;
+                insertUpdatedQueue(row, col);
+              }
+            }
+            // eliminate row
+            mask = 0;
+            for (let k in areaPoints[j]) {
+              const { row, col } = areaPoints[j][k];
+              // in area j but not in row i
+              if (row === i) {
+                continue;
+              }
+              mask |= possibleNumber[row][col];
+            }
+            for (let k = 0; k < size; k++) {
+              // in row i but not in area j
+              if (areas[i][k] === parseInt(j)) {
+                continue;
+              }
+              if ((possibleNumber[i][k] & mask) !== possibleNumber[i][k]) {
+                possibleNumber[i][k] &= mask;
+                insertUpdatedQueue(i, k);
+              }
+            }
+          }
+        }
+        // column x area
+        for (let i = 0; i < size; i++) {
+          const intersect = areaPoints.map(() => false);
+          for (let j = 0; j < size; j++) {
+            intersect[areas[j][i]] = true;
+          }
+          for (let j in intersect) {
+            if (!intersect[j]) {
+              continue;
+            }
+            let mask = 0;
+            // eliminate area
+            for (let k = 0; k < size; k++) {
+              // in column i but not in area j
+              if (areas[k][i] === parseInt(j)) {
+                continue;
+              }
+              mask |= possibleNumber[k][i];
+            }
+            for (let k in areaPoints[j]) {
+              const { row, col } = areaPoints[j][k];
+              // in area j but not in column i
+              if (col === i) {
+                continue;
+              }
+              if (
+                (possibleNumber[row][col] & mask) !==
+                possibleNumber[row][col]
+              ) {
+                possibleNumber[row][col] &= mask;
+                insertUpdatedQueue(row, col);
+              }
+            }
+            // eliminate column
+            mask = 0;
+            for (let k in areaPoints[j]) {
+              const { row, col } = areaPoints[j][k];
+              // in area j but not in column i
+              if (col === i) {
+                continue;
+              }
+              mask |= possibleNumber[row][col];
+            }
+            for (let k = 0; k < size; k++) {
+              // in column i but not in area j
+              if (areas[k][i] === parseInt(j)) {
+                continue;
+              }
+              if ((possibleNumber[k][i] & mask) !== possibleNumber[k][i]) {
+                possibleNumber[k][i] &= mask;
+                insertUpdatedQueue(k, i);
+              }
+            }
+          }
+        }
+      }
     }
   };
   let iterationCount = 0;
@@ -215,37 +327,43 @@
       col: [...solvedBits.col],
       area: [...solvedBits.area]
     };
+    let minBitsPos = { row: 0, col: 0 };
+    let minBits = 10;
     for (let i = 0; i < size; i++) {
       for (let j = 0; j < size; j++) {
-        let bits = possibleNumber[i][j];
-        switch (countBits(bits)) {
-          case 0:
-            return false;
-          case 1:
-            break;
-          default:
-            while (bits) {
-              const lowestBit = bits & -bits;
-              possibleNumber[i][j] = lowestBit;
-              insertUpdatedQueue(i, j);
-              if (exhaustiveSearch()) {
-                return true;
-              } else {
-                localPossibleNumber[i][j] -= lowestBit;
-                for (let k = 0; k < size; k++) {
-                  possibleNumber[k] = [...localPossibleNumber[k]];
-                }
-                solvedBits.row = [...localSolvedBits.row];
-                solvedBits.col = [...localSolvedBits.col];
-                solvedBits.area = [...localSolvedBits.area];
-              }
-              bits -= lowestBit;
-            }
-            return false;
+        let numberOfBits = countBits(possibleNumber[i][j]);
+        if (numberOfBits !== 1 && numberOfBits <= minBits) {
+          minBits = numberOfBits;
+          minBitsPos = { row: i, col: j };
         }
       }
     }
-    return true;
+    if (minBits === 10) {
+      return true;
+    }
+    if (minBits === 0) {
+      return false;
+    }
+    const { row, col } = minBitsPos;
+    let bits = possibleNumber[row][col];
+    while (bits) {
+      const lowestBit = bits & -bits;
+      possibleNumber[row][col] = lowestBit;
+      insertUpdatedQueue(row, col);
+      if (exhaustiveSearch()) {
+        return true;
+      } else {
+        localPossibleNumber[row][col] -= lowestBit;
+        for (let k = 0; k < size; k++) {
+          possibleNumber[k] = [...localPossibleNumber[k]];
+        }
+        solvedBits.row = [...localSolvedBits.row];
+        solvedBits.col = [...localSolvedBits.col];
+        solvedBits.area = [...localSolvedBits.area];
+      }
+      bits -= lowestBit;
+    }
+    return false;
   };
 
   exhaustiveSearch();
