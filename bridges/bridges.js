@@ -350,7 +350,7 @@
     return false;
   };
 
-  console.log(exhaustiveSearch());
+  exhaustiveSearch();
 
   window.document.getElementById("robot").value = true;
   for (let i in islands) {
